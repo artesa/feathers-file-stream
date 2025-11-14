@@ -1,22 +1,22 @@
 /// <reference types="vitest" />
-import path from "node:path";
-import { defineConfig } from "vite";
-import dts from "vite-plugin-dts";
-import pkg from "./package.json";
+import path from 'node:path'
+import { defineConfig } from 'vite'
+import dts from 'vite-plugin-dts'
+import pkg from './package.json'
 
 export default defineConfig({
   plugins: [
     dts({
-      insertTypesEntry: true
-    })
+      insertTypesEntry: true,
+    }),
   ],
   build: {
     minify: false,
     lib: {
-      entry: path.resolve(__dirname, "src/index.ts"),
-      name: "index",
-      fileName: "index",
-      formats: ["es", "cjs"]
+      entry: path.resolve(__dirname, 'src/index.ts'),
+      name: 'index',
+      fileName: 'index',
+      formats: ['es', 'cjs'],
     },
     // outDir: path.resolve(__dirname, "dist"),
     sourcemap: true,
@@ -24,12 +24,12 @@ export default defineConfig({
       // make sure to externalize deps that shouldn't be bundled
       // into your library
       external: [...Object.keys(pkg.dependencies), /^node:/],
-      output: {}
-    }
+      output: {},
+    },
   },
   test: {
     globals: true,
     testTimeout: 60000,
-    globalSetup: path.resolve(__dirname, "test/globalSetup.ts")
-  }
-});
+    globalSetup: path.resolve(__dirname, 'test/globalSetup.ts'),
+  },
+})
