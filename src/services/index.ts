@@ -1,2 +1,2 @@
-export * from "./ServiceFileStreamFS";
-export * from "./ServiceFileStreamS3";
+export * from './ServiceFileStreamFS'
+export * from './ServiceFileStreamS3'

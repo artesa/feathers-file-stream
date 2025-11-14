@@ -1,1 +1,1 @@
-export * from "./mid.express";
+export * from './mid.express'

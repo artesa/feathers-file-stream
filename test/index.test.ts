@@ -1,17 +1,17 @@
-import { expect } from "vitest";
-import * as src from "../src";
+import { expect } from 'vitest'
+import * as src from '../src'
 
-describe("index.test.ts", function () {
-  it("exports members", function () {
+describe('index.test.ts', function () {
+  it('exports members', function () {
     // services
-    expect(src.ServiceFileStreamFS).to.be.a("function");
-    expect(src.ServiceFileStreamS3).to.be.a("function");
+    expect(typeof src.ServiceFileStreamFS).toBe('function')
+    expect(typeof src.ServiceFileStreamS3).toBe('function')
 
     // hooks
-    expect(src.unpipe).to.be.a("function");
+    expect(typeof src.unpipe).toBe('function')
 
     // middleware
-    expect(src.expressHandleIncomingStreams).to.be.a("function");
-    expect(src.expressSendStreamForGet).to.be.a("function");
-  });
-});
+    expect(typeof src.expressHandleIncomingStreams).toBe('function')
+    expect(typeof src.expressSendStreamForGet).toBe('function')
+  })
+})

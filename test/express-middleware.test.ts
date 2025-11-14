@@ -1,59 +1,61 @@
-import supertest from "supertest";
-import { mockFSServer } from "./utils/mockApp";
-import { expect } from "vitest";
-import { unpipe } from "../src";
+import supertest from 'supertest'
+import { mockFSServer } from './utils/mockApp'
+import { expect } from 'vitest'
+import { unpipe } from '../src'
 
-describe("express-middleware.test.ts", function () {
-  it("upload file", async function () {
-    let transformCalled = false;
+describe('express-middleware.test.ts', function () {
+  it('upload file', async function () {
+    let transformCalled = false
     const app = await mockFSServer({
       transformItems: (file) => {
-        transformCalled = true;
+        transformCalled = true
         return {
           ...file,
-          test: true
-        };
-      }
-    });
+          test: true,
+        }
+      },
+    })
 
-    const uploadsService = app.service("uploads");
+    const uploadsService = app.service('uploads')
 
-    let hookCalled = false;
+    let hookCalled = false
 
     uploadsService.hooks({
       before: {
         create: [
           async (context: any) => {
-            const { data } = context;
+            const { data } = context
 
-            expect(data).to.be.an("array");
-            expect(data.length).to.equal(1);
+            expect(Array.isArray(data)).toBe(true)
+            expect(data.length).toBe(1)
 
-            const [obj] = data;
+            const [obj] = data
 
-            expect(obj).to.be.an("object");
-            expect(obj).to.have.property("stream");
-            expect(obj.test).to.be.true;
+            expect(typeof obj).toBe('object')
+            expect(obj).toHaveProperty('stream')
+            expect(obj.test).toBe(true)
 
-            hookCalled = true;
+            hookCalled = true
 
-            throw new Error("");
-          }
-        ]
+            throw new Error('')
+          },
+        ],
       },
       after: {
-        create: [unpipe({ unlink: "path" })]
+        create: [unpipe({ unlink: 'path' })],
       },
       error: {
-        create: [unpipe({ unlink: "path" })]
-      }
-    });
+        create: [unpipe({ unlink: 'path' })],
+      },
+    })
 
-    const buffer = Buffer.from("some data");
+    const buffer = Buffer.from('some data')
 
-    await supertest(app as any).post("/uploads").attach("files", buffer, "test.txt");
+    await supertest(app as any)
+      .post('/uploads')
+      .attach('files', buffer, 'test.txt')
 
-    expect(transformCalled).to.be.true;
-    expect(hookCalled).to.be.true;
-  });
-});
+    expect(transformCalled).toBe(true)
+    expect(hookCalled).toBe(true)
+  })
+})
