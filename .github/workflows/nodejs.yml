@@ -15,12 +15,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - run: npm install -g corepack@latest
-      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ matrix.node-version }}
           cache: "pnpm"
+      - run: corepack enable
       - run: pnpm i
       - run: pnpm test
 
@@ -28,10 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm install -g corepack@latest
-      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
+          cache: "pnpm"
+      - run: corepack enable
       - run: pnpm i
       - run: pnpm run build
