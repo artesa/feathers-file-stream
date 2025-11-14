@@ -1,6 +1,6 @@
 {
   "name": "@artesa/feathers-file-stream",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "feathers.js plugin for file uploads and downloads with streams",
   "author": "Artesa",
   "homepage": "https://github.com/Artesa/feathers-file-stream",
