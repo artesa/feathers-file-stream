@@ -18,8 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
       - run: corepack enable
+      - run: corepack prepare pnpm@latest --activate
       - run: pnpm i
       - run: pnpm test
 
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
-          cache: "pnpm"
       - run: corepack enable
+      - run: corepack prepare pnpm@latest --activate
       - run: pnpm i
       - run: pnpm run build
