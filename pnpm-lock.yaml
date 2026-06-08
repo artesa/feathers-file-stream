@@ -8,40 +8,34 @@ importers:
 
   .:
     dependencies:
-      '@aws-sdk/client-s3':
-        specifier: ^3.1063.0
-        version: 3.1063.0
-      '@aws-sdk/lib-storage':
-        specifier: ^3.1063.0
-        version: 3.1063.0(@aws-sdk/client-s3@3.1063.0)
-      '@feathersjs/errors':
-        specifier: ^5.0.45
-        version: 5.0.45
-      '@feathersjs/feathers':
-        specifier: ^5.0.45
-        version: 5.0.45
-      express:
-        specifier: ^4.19.2
-        version: 4.21.2
       feathers-utils:
         specifier: ^10.0.2
         version: 10.0.2(@feathersjs/feathers@5.0.45)
       mime-types:
         specifier: ^3.0.2
         version: 3.0.2
-      multer:
-        specifier: ^2.1.1
-        version: 2.1.1
     devDependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1063.0
+        version: 3.1063.0
+      '@aws-sdk/lib-storage':
+        specifier: ^3.1063.0
+        version: 3.1063.0(@aws-sdk/client-s3@3.1063.0)
       '@feathers-community/eslint-config':
         specifier: ^0.1.0
         version: 0.1.0(@types/estree@1.0.8)(@typescript-eslint/utils@8.60.1(eslint@10.4.1)(typescript@5.9.3))(eslint@10.4.1)(jsonc-eslint-parser@2.4.1)(prettier@3.8.3)(typescript@5.9.3)
       '@feathersjs/client':
         specifier: ^5.0.45
         version: 5.0.45(typescript@5.9.3)
+      '@feathersjs/errors':
+        specifier: ^5.0.45
+        version: 5.0.45
       '@feathersjs/express':
         specifier: ^5.0.45
         version: 5.0.45(typescript@5.9.3)
+      '@feathersjs/feathers':
+        specifier: ^5.0.45
+        version: 5.0.45
       '@feathersjs/rest-client':
         specifier: ^5.0.45
         version: 5.0.45
@@ -81,12 +75,18 @@ importers:
       eslint:
         specifier: ^10.4.1
         version: 10.4.1
+      express:
+        specifier: ^4.19.2
+        version: 4.21.2
       get-port:
         specifier: ^7.2.0
         version: 7.2.0
       helmet:
         specifier: ^8.2.0
         version: 8.2.0
+      multer:
+        specifier: ^2.1.1
+        version: 2.1.1
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
