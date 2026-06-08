@@ -21,7 +21,11 @@ describe('s3.test.ts', function () {
 
   beforeEach(async function () {
     mock = mockClient(S3Client)
-    client = new S3Client({})
+    // A region is required even with a fully mocked client: lib-storage's
+    // Upload resolves the request endpoint (which needs a region) before the
+    // mocked `send`. Without it the upload fails with "Region is missing" in
+    // environments that have no ambient AWS config (e.g. CI).
+    client = new S3Client({ region: 'us-east-1' })
 
     app = await mockS3Server({ s3: client })
 
