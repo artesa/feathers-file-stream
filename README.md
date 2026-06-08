@@ -4,6 +4,22 @@
 npm i @artesa/feathers-file-stream
 ```
 
+This package relies on a few peer dependencies. `@feathersjs/feathers` and `@feathersjs/errors` are already part of any Feathers app, so you normally have them.
+
+If you use the S3 service (`ServiceFileStreamS3`), also install the AWS SDK packages:
+
+```shell
+npm i @aws-sdk/client-s3 @aws-sdk/lib-storage
+```
+
+If you use the Express middleware (`expressHandleIncomingStreams`, `expressSendStreamForGet`), also install Express and Multer:
+
+```shell
+npm i express multer
+```
+
+These peers are optional: the filesystem service (`ServiceFileStreamFS`) needs neither the AWS SDK nor Express/Multer.
+
 ## Usage with express & multer@next (multer v2) with fs storage
 
 ```ts
