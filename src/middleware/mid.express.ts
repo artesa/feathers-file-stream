@@ -125,9 +125,13 @@ export const expressSendStreamForGet =
       return next()
     }
 
-    const { stream, header = {} } = res.data
+    const { stream, header = {}, status } = res.data
 
     res.set(header)
+
+    if (typeof status === 'number') {
+      res.status(status)
+    }
 
     stream.on('data', (chunk) => res.write(chunk))
     stream.once('end', () => res.end())

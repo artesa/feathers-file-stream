@@ -1,7 +1,6 @@
 import type {
   DeleteObjectCommandInput,
   HeadObjectCommandOutput,
-  PutObjectCommandInput,
   S3Client,
 } from '@aws-sdk/client-s3'
 import {
@@ -9,11 +8,10 @@ import {
   CopyObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
-  PutObjectCommand,
 } from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
 import { FeathersError, GeneralError, NotFound } from '@feathersjs/errors'
 import type { Readable } from 'node:stream'
-import { PassThrough } from 'node:stream'
 import type {
   ServiceFileStream,
   ServiceFileStreamCreateData,
@@ -80,27 +78,23 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
     const bucket = params?.bucket || this.bucket
 
     const promises = items.map(async (item) => {
-      const { stream, id, size, mimeType } = item
-
-      const passThroughStream = new PassThrough()
-      stream.pipe(passThroughStream)
-
-      const putObjectInput: PutObjectCommandInput = {
-        Bucket: bucket,
-        Key: id,
-        Body: passThroughStream,
-      }
-
-      if (size) {
-        putObjectInput.ContentLength = size
-      }
-
-      if (mimeType) {
-        putObjectInput.ContentType = mimeType
-      }
+      const { stream, id, mimeType } = item
 
       try {
-        await this.s3.send(new PutObjectCommand(putObjectInput))
+        // Use lib-storage's Upload: it streams via multipart and does not
+        // require a known ContentLength (a raw PutObjectCommand with an
+        // unbounded stream is rejected by S3).
+        const upload = new Upload({
+          client: this.s3,
+          params: {
+            Bucket: bucket,
+            Key: id,
+            Body: stream,
+            ...(mimeType ? { ContentType: mimeType } : {}),
+          },
+        })
+
+        await upload.done()
       } catch (err) {
         this.errorHandler(err)
       }
@@ -151,6 +145,13 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
 
       // Now get the object data and stream it
       const response = await s3.send(new GetObjectCommand(params))
+
+      // Prefer the GetObject body length: for a ranged request this is the
+      // partial length, whereas HeadObject always reports the full object size.
+      // Declaring the full size on a partial response makes the client abort.
+      if (response.ContentLength != null) {
+        header['Content-Length'] = response.ContentLength
+      }
 
       let status = 200
 

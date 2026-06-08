@@ -1,5 +1,5 @@
 import type { HookContext } from '@feathersjs/feathers'
-import { checkContext } from 'feathers-hooks-common'
+import { checkContext } from 'feathers-utils/utils'
 import { Readable } from 'node:stream'
 import { asArray } from '../utils'
 import fsp from 'node:fs/promises'
