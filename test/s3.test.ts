@@ -21,7 +21,11 @@ describe('s3.test.ts', function () {
 
   beforeEach(async function () {
     mock = mockClient(S3Client)
-    client = new S3Client({})
+    // A region is required even with a fully mocked client: lib-storage's
+    // Upload resolves the request endpoint (which needs a region) before the
+    // mocked `send`. Without it the upload fails with "Region is missing" in
+    // environments that have no ambient AWS config (e.g. CI).
+    client = new S3Client({ region: 'us-east-1' })
 
     app = await mockS3Server({ s3: client })
 
@@ -77,6 +81,21 @@ describe('s3.test.ts', function () {
     expect(typeof uploadResult[0].id).toBe('string')
   })
 
+  it('upload multiple files', async function () {
+    mock.on(CreateMultipartUploadCommand).resolves({ UploadId: '123' })
+    mock.on(UploadPartCommand).resolves({ ETag: '123' })
+
+    const { body: uploadResult } = await supertest(app as any)
+      .post('/uploads')
+      .attach('files', Buffer.from('file a'), 'a.txt')
+      .attach('files', Buffer.from('file b'), 'b.txt')
+      .expect(201)
+
+    expect(Array.isArray(uploadResult)).toBe(true)
+    expect(uploadResult.length).toBe(2)
+    expect(uploadResult[0].id).not.toBe(uploadResult[1].id)
+  })
+
   it('download file', async function () {
     const buffer = Buffer.from('some data download file')
     const id = 'test-download-file.txt'
@@ -107,6 +126,49 @@ describe('s3.test.ts', function () {
     expect(result.header['content-type']).toBe('text/plain; charset=utf-8')
     expect(result.header['content-disposition']).toBe('inline')
     expect(result.header['content-length']).toBe(`${buffer.length}`)
+  })
+
+  // Range path: expressSendStreamForGet applies `res.data.status` (206) and
+  // _get uses the GetObject body length (partial), not the full HeadObject size.
+  it('download with range returns 206', async function () {
+    const full = Buffer.from('0123456789')
+    const partial = Buffer.from('0123')
+    const id = 'test-range-file.txt'
+
+    mock.on(HeadObjectCommand).resolves({
+      ContentLength: full.length,
+      ContentType: 'text/plain',
+      ETag: '123',
+    })
+    mock.on(GetObjectCommand).resolves({
+      Body: Readable.from(partial) as any,
+      ContentLength: partial.length,
+      ContentRange: `bytes 0-3/${full.length}`,
+    })
+
+    const result = await supertest(app as any)
+      .get(`/uploads/${id}`)
+      .set('Range', 'bytes=0-3')
+      .buffer()
+      .parse((res: any, cb) => {
+        res.setEncoding('binary')
+        res.data = ''
+        res.on('data', (chunk: any) => {
+          res.data += chunk
+        })
+        res.on('end', () => cb(null, Buffer.from(res.data, 'binary')))
+      })
+      .expect(206)
+
+    expect(result.body).toEqual(partial)
+    expect(result.header['content-range']).toBe('bytes 0-3/10')
+    expect(result.header['content-length']).toBe(`${partial.length}`)
+
+    // the HTTP `Range` header must flow through `params.headers.range` into the
+    // GetObjectCommand
+    const getCalls = mock.commandCalls(GetObjectCommand)
+    expect(getCalls.length).toBe(1)
+    expect(getCalls[0].args[0].input.Range).toBe('bytes=0-3')
   })
 
   it('remove file', async function () {

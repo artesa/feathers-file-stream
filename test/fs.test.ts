@@ -82,6 +82,27 @@ describe('fs.test.ts', function () {
       expect(typeof file).toBe('object')
       expect(file).toHaveProperty('stream')
     })
+
+    it('uploads multiple files at once', async function () {
+      const { body: uploadResult } = await supertest(app as any)
+        .post('/uploads')
+        .attach('files', Buffer.from('file a'), 'a.txt')
+        .attach('files', Buffer.from('file b'), 'b.txt')
+        .expect(201)
+
+      expect(Array.isArray(uploadResult)).toBe(true)
+      expect(uploadResult.length).toBe(2)
+      expect(uploadResult[0].id).not.toBe(uploadResult[1].id)
+
+      const exists = async (id: string) =>
+        fsp
+          .access(path.join(__dirname, 'uploads', id))
+          .then(() => true)
+          .catch(() => false)
+
+      expect(await exists(uploadResult[0].id)).toBe(true)
+      expect(await exists(uploadResult[1].id)).toBe(true)
+    })
   })
 
   it('downloads file', async function () {
@@ -108,6 +129,28 @@ describe('fs.test.ts', function () {
     expect(result.header['content-type']).toBe('text/plain; charset=utf-8')
     expect(result.header['content-disposition']).toBe('inline')
     expect(result.header['content-length']).toBe(`${buffer.length}`)
+  })
+
+  // NOTE: FS range is read from `params.range` (S3 reads `params.headers.range`),
+  // so an HTTP `Range` header is NOT mapped automatically — range only works via
+  // a direct service call. The S3 HTTP `Range` path is covered in s3.test.ts /
+  // s3-minio.test.ts. See plan: "FS-Range über HTTP greift nicht".
+  it('serves partial content for a range request (206)', async function () {
+    const buffer = Buffer.from('0123456789')
+    const id = 'test-range-file.txt'
+    await fsp.writeFile(path.join(__dirname, 'uploads', id), buffer)
+
+    const result = await app.service('uploads').get(id, { range: 'bytes=0-3' })
+
+    expect(result.status).toBe(206)
+    expect(result.header['Content-Range']).toBe('bytes 0-3/10')
+    expect(result.header['Content-Length']).toBe(4)
+
+    const chunks: Buffer[] = []
+    for await (const chunk of result.stream) {
+      chunks.push(chunk as Buffer)
+    }
+    expect(Buffer.concat(chunks)).toEqual(Buffer.from('0123'))
   })
 
   it('removes file', async function () {

@@ -17,16 +17,18 @@
     "s3"
   ],
   "license": "MIT",
-  "main": "dist/index.js",
+  "type": "module",
+  "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     }
   },
   "engines": {
-    "node": ">= 16.0.0"
+    "node": ">= 22.0.0"
   },
   "files": [
     "CHANGELOG.md",
@@ -34,56 +36,55 @@
     "README.md",
     "src/**",
     "dist/**",
-    "tsconfig.json",
-    "vite.config.ts"
+    "tsconfig.json"
   ],
-  "packageManager": "pnpm@10.22.0",
+  "packageManager": "pnpm@11.5.2",
   "scripts": {
-    "build": "shx rm -rf dist/ && vite build",
+    "build": "pnpm run typecheck && tsdown",
+    "typecheck": "tsc --noEmit",
     "version": "pnpm run build",
     "release": "np",
     "test": "vitest run",
+    "test:integration": "vitest run test/s3-minio.test.ts",
     "vitest": "vitest",
     "lint": "eslint"
   },
   "dependencies": {
-    "@aws-sdk/abort-controller": "^3.374.0",
-    "@aws-sdk/client-s3": "^3.931.0",
-    "@aws-sdk/lib-storage": "^3.931.0",
-    "@feathersjs/errors": "^5.0.37",
-    "@feathersjs/feathers": "^5.0.37",
+    "@aws-sdk/client-s3": "^3.1063.0",
+    "@aws-sdk/lib-storage": "^3.1063.0",
+    "@feathersjs/errors": "^5.0.45",
+    "@feathersjs/feathers": "^5.0.45",
     "express": "^4.19.2",
-    "feathers-hooks-common": "^8.2.1",
-    "mime-types": "^3.0.1",
-    "multer": "^2.0.2"
+    "feathers-utils": "^10.0.2",
+    "mime-types": "^3.0.2",
+    "multer": "^2.1.1"
   },
   "devDependencies": {
-    "@feathers-community/eslint-config": "^0.0.10",
-    "@feathersjs/client": "^5.0.37",
-    "@feathersjs/express": "^5.0.37",
-    "@feathersjs/rest-client": "^5.0.37",
+    "@feathers-community/eslint-config": "^0.1.0",
+    "@feathersjs/client": "^5.0.45",
+    "@feathersjs/express": "^5.0.45",
+    "@feathersjs/rest-client": "^5.0.45",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/mime-types": "^3.0.1",
-    "@types/multer": "^2.0.0",
-    "@types/node": "^24.10.1",
-    "@types/supertest": "^6.0.3",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.9.2",
+    "@types/supertest": "^7.2.0",
     "aws-sdk-client-mock": "^4.1.0",
     "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "eslint": "^9.39.1",
-    "get-port": "^7.1.0",
-    "helmet": "^8.1.0",
+    "cors": "^2.8.6",
+    "eslint": "^10.4.1",
+    "get-port": "^7.2.0",
+    "helmet": "^8.2.0",
     "node-fetch": "^3.3.2",
-    "np": "^10.2.0",
-    "prettier": "^3.6.2",
-    "shx": "^0.4.0",
-    "supertest": "^7.1.4",
+    "np": "^11.2.1",
+    "prettier": "^3.8.3",
+    "supertest": "^7.2.2",
+    "tsdown": "^0.22.2",
     "typescript": "^5.9.3",
-    "vite": "^7.2.2",
-    "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.9"
+    "unrun": "^0.3.1",
+    "vitest": "^4.1.8"
   }
 }

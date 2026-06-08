@@ -1,13 +1,13 @@
 import crypto from 'node:crypto'
 import type { HookContext } from '@feathersjs/feathers'
-import { alterItems } from 'feathers-hooks-common'
+import { transformData } from 'feathers-utils/transformers'
 import 'multer'
 import path from 'node:path'
 
 export const transformItems =
   () =>
   <H extends HookContext>(context: H) => {
-    return alterItems((item: Express.Multer.File) => {
+    return transformData((item: Express.Multer.File) => {
       const hash = crypto.randomBytes(16).toString('hex')
       const ext = path.extname(item.filename)
       const id = `${hash}${ext}`
@@ -19,7 +19,7 @@ export const transformItems =
 export const transformItemsNested =
   () =>
   <H extends HookContext>(context: H) => {
-    return alterItems((item: Express.Multer.File) => {
+    return transformData((item: Express.Multer.File) => {
       const hash = crypto.randomBytes(16).toString('hex')
       const ext = path.extname(item.filename)
       const id = `test/test/${hash}${ext}`

@@ -23,6 +23,41 @@ jobs:
       - run: pnpm i
       - run: pnpm test
 
+  # Integration tests against a real S3 server (MinIO).
+  # Uses the pgsty/minio republish because MinIO Inc. discontinued the free
+  # minio/minio Docker images in 2025. Started via `docker run` (not a
+  # `services:` container) because GitHub `services` cannot pass the required
+  # `server /data` command.
+  s3-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - run: corepack enable
+      - run: corepack prepare pnpm@latest --activate
+      - run: pnpm i
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            pgsty/minio:RELEASE.2026-04-17T00-00-00Z server /data
+      - name: Wait for MinIO
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9000/minio/health/live && exit 0
+            sleep 1
+          done
+          echo "MinIO did not become ready" && docker logs minio && exit 1
+      - run: pnpm test:integration
+        env:
+          S3_ENDPOINT: http://127.0.0.1:9000
+          S3_ACCESS_KEY_ID: minioadmin
+          S3_SECRET_ACCESS_KEY: minioadmin
+          S3_REGION: us-east-1
+
   build:
     runs-on: ubuntu-latest
     steps:
