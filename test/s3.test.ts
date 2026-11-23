@@ -7,7 +7,10 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  NotFound,
+  PutObjectCommand,
   S3Client,
+  S3ServiceException,
   UploadPartCommand,
 } from '@aws-sdk/client-s3'
 import { mockClient } from 'aws-sdk-client-mock'
@@ -48,8 +51,12 @@ describe('s3.test.ts', function () {
     mock.reset()
   })
 
+  /** What S3 answers a HEAD for a missing object with: a status and no body. */
+  const missing = () =>
+    new NotFound({ message: 'NotFound', $metadata: { httpStatusCode: 404 } })
+
   it('get throws NotFound for non-existing file', async () => {
-    mock.on(HeadObjectCommand).rejects()
+    mock.on(HeadObjectCommand).rejects(missing())
 
     await supertest(app as any)
       .get('/uploads/does-not-exist')
@@ -57,11 +64,66 @@ describe('s3.test.ts', function () {
   })
 
   it('remove throws NotFound for non-existing file', async () => {
-    mock.on(HeadObjectCommand).rejects()
+    mock.on(HeadObjectCommand).rejects(missing())
 
     await supertest(app as any)
       .delete('/uploads/does-not-exist')
       .expect(404)
+  })
+
+  it('get throws a GeneralError, not NotFound, when the store fails', async () => {
+    const service = app.service('uploads')
+
+    for (const failure of [
+      new S3ServiceException({
+        name: 'ServiceUnavailable',
+        message: 'Please reduce your request rate.',
+        $fault: 'server',
+        $metadata: { httpStatusCode: 503 },
+      }),
+      new S3ServiceException({
+        name: 'Forbidden',
+        message: 'Access Denied',
+        $fault: 'client',
+        $metadata: { httpStatusCode: 403 },
+      }),
+      Object.assign(new Error('connect ECONNREFUSED'), {
+        code: 'ECONNREFUSED',
+      }),
+    ]) {
+      mock.on(HeadObjectCommand).rejects(failure)
+
+      await expect(service.get('some-file')).rejects.toMatchObject({
+        name: 'GeneralError',
+        message: failure.message,
+        data: { error: failure },
+      })
+      await expect(service.remove('some-file')).rejects.toMatchObject({
+        name: 'GeneralError',
+      })
+    }
+  })
+
+  it('get throws NotFound when the object goes between its HEAD and GET', async () => {
+    mock.on(HeadObjectCommand).resolves({ ContentLength: 4 })
+    mock.on(GetObjectCommand).rejects(missing())
+
+    await expect(app.service('uploads').get('some-file')).rejects.toMatchObject(
+      {
+        name: 'NotFound',
+      },
+    )
+  })
+
+  it('create fails when the upload fails, whatever it rejects with', async () => {
+    // nothing at all: a rejection without an error must not pass for a stored file
+    mock.on(CreateMultipartUploadCommand).callsFake(() => Promise.reject(null))
+    mock.on(PutObjectCommand).callsFake(() => Promise.reject(null))
+
+    await supertest(app as any)
+      .post('/uploads')
+      .attach('files', Buffer.from('some data'), 'test.txt')
+      .expect(500)
   })
 
   it('upload file', async function () {
