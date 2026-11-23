@@ -8,6 +8,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   NotFound,
+  PutObjectCommand,
   S3Client,
   S3ServiceException,
   UploadPartCommand,
@@ -76,11 +77,13 @@ describe('s3.test.ts', function () {
     for (const failure of [
       new S3ServiceException({
         name: 'ServiceUnavailable',
+        message: 'Please reduce your request rate.',
         $fault: 'server',
         $metadata: { httpStatusCode: 503 },
       }),
       new S3ServiceException({
         name: 'Forbidden',
+        message: 'Access Denied',
         $fault: 'client',
         $metadata: { httpStatusCode: 403 },
       }),
@@ -92,12 +95,35 @@ describe('s3.test.ts', function () {
 
       await expect(service.get('some-file')).rejects.toMatchObject({
         name: 'GeneralError',
+        message: failure.message,
         data: { error: failure },
       })
       await expect(service.remove('some-file')).rejects.toMatchObject({
         name: 'GeneralError',
       })
     }
+  })
+
+  it('get throws NotFound when the object goes between its HEAD and GET', async () => {
+    mock.on(HeadObjectCommand).resolves({ ContentLength: 4 })
+    mock.on(GetObjectCommand).rejects(missing())
+
+    await expect(app.service('uploads').get('some-file')).rejects.toMatchObject(
+      {
+        name: 'NotFound',
+      },
+    )
+  })
+
+  it('create fails when the upload fails, whatever it rejects with', async () => {
+    // nothing at all: a rejection without an error must not pass for a stored file
+    mock.on(CreateMultipartUploadCommand).callsFake(() => Promise.reject(null))
+    mock.on(PutObjectCommand).callsFake(() => Promise.reject(null))
+
+    await supertest(app as any)
+      .post('/uploads')
+      .attach('files', Buffer.from('some data'), 'test.txt')
+      .expect(500)
   })
 
   it('upload file', async function () {

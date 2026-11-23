@@ -169,7 +169,6 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
       } as ServiceFileStreamS3GetResult
     } catch (err) {
       this.errorHandler(err)
-      throw err
     }
   }
 
@@ -196,7 +195,6 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
       }
     } catch (err) {
       this.errorHandler(err)
-      throw err
     }
   }
 
@@ -242,16 +240,8 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
           Key: id,
         }),
       )
-    } catch (err: any) {
-      // only a 404 means the object is missing: a store that is down or refuses
-      // must not look like a file that is gone
-      if (err?.$metadata?.httpStatusCode === 404) {
-        throw new NotFound('File not found', {
-          error: err,
-        })
-      }
+    } catch (err) {
       this.errorHandler(err)
-      throw err
     }
   }
 
@@ -284,18 +274,30 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
       }
     } catch (err) {
       this.errorHandler(err)
-      throw err
     }
   }
 
-  errorHandler(err: any) {
-    if (!err) return
-
+  /**
+   * Throws what an S3 call failed with as a Feathers error. Only a 404 is
+   * NotFound: a store that is down or refuses must not look like a file that
+   * is gone. Anything else is a GeneralError with its message and, in
+   * `data.error`, the original.
+   */
+  errorHandler(err: unknown): never {
     if (err instanceof FeathersError) {
       throw err
     }
 
-    throw new GeneralError('Error', {
+    const s3Error = err as
+      | { message?: string; $metadata?: { httpStatusCode?: number } }
+      | null
+      | undefined
+
+    if (s3Error?.$metadata?.httpStatusCode === 404) {
+      throw new NotFound('File not found', { error: err })
+    }
+
+    throw new GeneralError(s3Error?.message || 'S3 request failed', {
       error: err,
     })
   }
