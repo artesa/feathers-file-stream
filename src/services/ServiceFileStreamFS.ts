@@ -19,7 +19,7 @@ import type {
 import type { MaybeArray } from '../utility-types'
 import { asArray } from '../utils'
 import mime from 'mime-types'
-import parseRange from 'range-parser'
+import { combineRanges, parse as parseRange } from 'range-parser'
 import type { Readable } from 'node:stream'
 
 export type ServiceFileStreamFSOptions = {
@@ -45,8 +45,10 @@ export type ServiceFileStreamFSGetParams = {
  */
 function singleRange(size: number, header: string | undefined) {
   if (!header) return undefined
-  const ranges = parseRange(size, header, { combine: true })
-  if (ranges === -1) {
+  const result = parseRange(size, header)
+  if (result.type !== 'bytes') return undefined
+  // code bit 2: unsatisfiable ranges; with none left over, the whole request is
+  if (result.code & 2 && result.ranges.length === 0) {
     throw new FeathersError(
       'Range Not Satisfiable',
       'RangeNotSatisfiable',
@@ -55,9 +57,8 @@ function singleRange(size: number, header: string | undefined) {
       { size },
     )
   }
-  if (ranges === -2 || ranges.type !== 'bytes' || ranges.length !== 1) {
-    return undefined
-  }
+  const ranges = combineRanges(result.ranges)
+  if (ranges.length !== 1) return undefined
   return ranges[0]
 }
 

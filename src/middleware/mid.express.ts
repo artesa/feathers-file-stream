@@ -1,3 +1,4 @@
+// eslint-disable-next-line e18e/ban-dependencies -- this is the express middleware
 import type { Request, Response, NextFunction } from 'express'
 import type { ServiceFileStreamGetResult } from '../types'
 import { asArray, isGetResult } from '../utils'
