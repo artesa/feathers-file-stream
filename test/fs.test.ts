@@ -175,7 +175,7 @@ describe('fs.test.ts', function () {
     })
 
     it('serves the whole file for ranges it does not support', async () => {
-      for (const range of ['bytes=0-1,4-5', 'items=0-1']) {
+      for (const range of ['bytes=0-1,4-5', 'items=0-1', 'bytes=5-2']) {
         const result = await get(range).expect(200)
         expect(result.text).toBe('0123456789')
       }

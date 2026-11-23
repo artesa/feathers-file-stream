@@ -22,7 +22,6 @@ import {
 import path from 'node:path'
 
 import makeRestClient from '@feathersjs/rest-client'
-import fetch from 'node-fetch'
 
 type Services = {
   uploads: ServiceFileStreamFS & ServiceAddons<any>
