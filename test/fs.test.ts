@@ -131,10 +131,58 @@ describe('fs.test.ts', function () {
     expect(result.header['content-length']).toBe(`${buffer.length}`)
   })
 
-  // NOTE: FS range is read from `params.range` (S3 reads `params.headers.range`),
-  // so an HTTP `Range` header is NOT mapped automatically — range only works via
-  // a direct service call. The S3 HTTP `Range` path is covered in s3.test.ts /
-  // s3-minio.test.ts. See plan: "FS-Range über HTTP greift nicht".
+  describe('range requests over HTTP', () => {
+    const id = 'test-http-range-file.txt'
+
+    beforeAll(async () => {
+      await fsp.writeFile(
+        path.join(__dirname, 'uploads', id),
+        Buffer.from('0123456789'),
+      )
+    })
+
+    const get = (range: string) =>
+      supertest(app as any)
+        .get(`/uploads/${id}`)
+        .set('Range', range)
+
+    // pdf.js loads a document in such ranges, a whole file each multiplied the bytes it loads
+    it('serves the requested range (206)', async () => {
+      const result = await get('bytes=2-5').expect(206)
+
+      expect(result.text).toBe('2345')
+      expect(result.header['content-range']).toBe('bytes 2-5/10')
+      expect(result.header['content-length']).toBe('4')
+    })
+
+    it('serves the last bytes for a suffix range', async () => {
+      const result = await get('bytes=-3').expect(206)
+
+      expect(result.text).toBe('789')
+      expect(result.header['content-range']).toBe('bytes 7-9/10')
+    })
+
+    it('ends a range that reaches past the file at its last byte', async () => {
+      const result = await get('bytes=5-100').expect(206)
+
+      expect(result.text).toBe('56789')
+      expect(result.header['content-range']).toBe('bytes 5-9/10')
+      expect(result.header['content-length']).toBe('5')
+    })
+
+    it('answers a range beyond the file with 416', async () => {
+      await get('bytes=20-30').expect(416)
+    })
+
+    it('serves the whole file for ranges it does not support', async () => {
+      for (const range of ['bytes=0-1,4-5', 'items=0-1']) {
+        const result = await get(range).expect(200)
+        expect(result.text).toBe('0123456789')
+      }
+    })
+  })
+
+  // `params.range` predates reading the header like the S3 service does
   it('serves partial content for a range request (206)', async function () {
     const buffer = Buffer.from('0123456789')
     const id = 'test-range-file.txt'

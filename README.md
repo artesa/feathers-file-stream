@@ -77,6 +77,12 @@ app.use(
 );
 ```
 
+## Range requests
+
+Both services answer a request's `Range` header (`params.headers.range`, as Feathers' REST transport passes it) with `206 Partial Content`, so a PDF viewer or a video player loads only the bytes it needs. The filesystem service serves one range at a time: several at once get the whole file, a range past its end a `416`. A direct call without headers can pass `params.range` instead.
+
+`expressSendStreamForGet` closes the file when the client goes away. A file that fails before its first byte ends in Express' error handler, one that fails mid-way in a dropped connection.
+
 ## Upload a file with stream
 
 ```ts

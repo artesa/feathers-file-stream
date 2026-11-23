@@ -133,9 +133,12 @@ export const expressSendStreamForGet =
       res.status(status)
     }
 
-    stream.on('data', (chunk) => res.write(chunk))
-    stream.once('end', () => res.end())
-    stream.once('error', (_err) => {
-      res.end()
+    // the client went away: close the file instead of reading it into a dead socket
+    res.once('close', () => stream.destroy())
+    stream.once('error', (error) => {
+      // only a dropped connection tells a client its file broke off mid-way
+      if (res.headersSent) return res.destroy()
+      next(error)
     })
+    stream.pipe(res)
   }

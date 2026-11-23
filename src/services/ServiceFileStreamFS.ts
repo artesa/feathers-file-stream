@@ -1,5 +1,5 @@
 import type { Params } from '@feathersjs/feathers'
-import { GeneralError, NotFound } from '@feathersjs/errors'
+import { FeathersError, GeneralError, NotFound } from '@feathersjs/errors'
 import { createReadStream, createWriteStream, existsSync } from 'node:fs'
 import {
   mkdir,
@@ -19,6 +19,7 @@ import type {
 import type { MaybeArray } from '../utility-types'
 import { asArray } from '../utils'
 import mime from 'mime-types'
+import parseRange from 'range-parser'
 import type { Readable } from 'node:stream'
 
 export type ServiceFileStreamFSOptions = {
@@ -30,51 +31,72 @@ export type ServiceFileStreamFSCreateData = {
   stream: Readable | Buffer
 }
 
+export type ServiceFileStreamFSGetParams = {
+  /** the request's headers, as Feathers' REST transport passes them */
+  headers?: { range?: string; [key: string]: any }
+  /** a `Range` header value, for calls without one */
+  range?: string
+  [key: string]: any
+}
+
+/**
+ * The one byte range a `Range` header asks for, or undefined for the whole file: HTTP lets a
+ * server ignore what it doesn't support, like several ranges at once.
+ */
+function singleRange(size: number, header: string | undefined) {
+  if (!header) return undefined
+  const ranges = parseRange(size, header, { combine: true })
+  if (ranges === -1) {
+    throw new FeathersError(
+      'Range Not Satisfiable',
+      'RangeNotSatisfiable',
+      416,
+      'range-not-satisfiable',
+      { size },
+    )
+  }
+  if (ranges === -2 || ranges.type !== 'bytes' || ranges.length !== 1) {
+    return undefined
+  }
+  return ranges[0]
+}
+
 export class ServiceFileStreamFS implements ServiceFileStream {
   options: ServiceFileStreamFSOptions
   constructor(options: ServiceFileStreamFSOptions) {
     this.options = options
   }
 
-  async _get(id: string, _params?: any): Promise<ServiceFileStreamGetResult> {
+  async _get(
+    id: string,
+    params?: ServiceFileStreamFSGetParams,
+  ): Promise<ServiceFileStreamGetResult> {
     const info = await this.getStat(id)
 
-    const range = _params?.range as string | undefined
-
-    let start = 0
-    let end = info.size
-    let contentRange = false
-    let contentLength = info.size
-
-    if (range) {
-      const positions = range.replace(/bytes=/, '').split('-')
-      start = parseInt(positions[0], 10)
-      end = positions[1] ? parseInt(positions[1], 10) : info.size - 1
-      const chunksize = end - start + 1
-      contentRange = true
-      contentLength = chunksize
-    }
+    // `params.range` predates reading the header like the S3 service does
+    const range = singleRange(
+      info.size,
+      params?.headers?.range ?? params?.range,
+    )
 
     const { root } = this.options
-    const stream = createReadStream(path.join(root, id), { start, end })
+    const stream = createReadStream(path.join(root, id), range)
 
     const contentType = mime.lookup(id) || 'application/octet-stream'
-
-    // const fileName = path.basename(id);
 
     return {
       header: {
         'Accept-Ranges': 'bytes',
         'Content-Type': contentType,
         'Content-disposition': 'inline',
-        'Content-Length': contentLength,
-        ...(contentRange
+        'Content-Length': range ? range.end - range.start + 1 : info.size,
+        ...(range
           ? {
-              'Content-Range': 'bytes ' + start + '-' + end + '/' + info.size,
+              'Content-Range': `bytes ${range.start}-${range.end}/${info.size}`,
             }
           : {}),
       },
-      status: contentRange ? 206 : 200,
+      status: range ? 206 : 200,
       stream,
     }
   }
