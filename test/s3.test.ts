@@ -7,7 +7,9 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  NotFound,
   S3Client,
+  S3ServiceException,
   UploadPartCommand,
 } from '@aws-sdk/client-s3'
 import { mockClient } from 'aws-sdk-client-mock'
@@ -48,8 +50,12 @@ describe('s3.test.ts', function () {
     mock.reset()
   })
 
+  /** What S3 answers a HEAD for a missing object with: a status and no body. */
+  const missing = () =>
+    new NotFound({ message: 'NotFound', $metadata: { httpStatusCode: 404 } })
+
   it('get throws NotFound for non-existing file', async () => {
-    mock.on(HeadObjectCommand).rejects()
+    mock.on(HeadObjectCommand).rejects(missing())
 
     await supertest(app as any)
       .get('/uploads/does-not-exist')
@@ -57,11 +63,41 @@ describe('s3.test.ts', function () {
   })
 
   it('remove throws NotFound for non-existing file', async () => {
-    mock.on(HeadObjectCommand).rejects()
+    mock.on(HeadObjectCommand).rejects(missing())
 
     await supertest(app as any)
       .delete('/uploads/does-not-exist')
       .expect(404)
+  })
+
+  it('get throws a GeneralError, not NotFound, when the store fails', async () => {
+    const service = app.service('uploads')
+
+    for (const failure of [
+      new S3ServiceException({
+        name: 'ServiceUnavailable',
+        $fault: 'server',
+        $metadata: { httpStatusCode: 503 },
+      }),
+      new S3ServiceException({
+        name: 'Forbidden',
+        $fault: 'client',
+        $metadata: { httpStatusCode: 403 },
+      }),
+      Object.assign(new Error('connect ECONNREFUSED'), {
+        code: 'ECONNREFUSED',
+      }),
+    ]) {
+      mock.on(HeadObjectCommand).rejects(failure)
+
+      await expect(service.get('some-file')).rejects.toMatchObject({
+        name: 'GeneralError',
+        data: { error: failure },
+      })
+      await expect(service.remove('some-file')).rejects.toMatchObject({
+        name: 'GeneralError',
+      })
+    }
   })
 
   it('upload file', async function () {

@@ -242,10 +242,16 @@ export class ServiceFileStreamS3 implements ServiceFileStream {
           Key: id,
         }),
       )
-    } catch (err) {
-      throw new NotFound('File not found', {
-        error: err,
-      })
+    } catch (err: any) {
+      // only a 404 means the object is missing: a store that is down or refuses
+      // must not look like a file that is gone
+      if (err?.$metadata?.httpStatusCode === 404) {
+        throw new NotFound('File not found', {
+          error: err,
+        })
+      }
+      this.errorHandler(err)
+      throw err
     }
   }
 
